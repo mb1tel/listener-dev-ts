@@ -31,7 +31,9 @@ jobs:
         node-version: ${{ env.NODE_VERSION }}
 
     - name: Install dependencies
-      run: npm install
+      run: |
+        cd ${{ env.DOCKER_CONTEXT }}
+        npm install
 
     - name: Build Docker image
       run: |
@@ -81,7 +83,7 @@ jobs:
     - name: Restore K8s Files
       run: |
         mkdir -p k8s
-        echo "${{ secrets.K8S_TAR_BASE64 }}" | base64 --decode | tar -xzf - -C k8s
+        echo "${{ secrets.K8S_TAR_BASE64 }}" | base64 -d | tar -xzf - -C k8s
 
     # - name: Debug K8s Extract
     #   run: ls -lah
@@ -104,3 +106,7 @@ jobs:
         DEPLOYMENT_NAME=${{ env.REPO_NAME }}
         CONTAINER_NAME=${{ env.REPO_NAME }}
         kubectl set image deployment/$DEPLOYMENT_NAME $CONTAINER_NAME=${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_REPOSITORY }}:${{ env.IMAGE_TAG }} -n ${{ env.K8S_NAMESPACE }}
+
+    - name: Wait for Deployment rollout
+      run: |
+        kubectl rollout status deployment/${{ env.REPO_NAME }} -n ${{ env.K8S_NAMESPACE }}
