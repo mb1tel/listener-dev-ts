@@ -1,0 +1,266 @@
+version: '3.8'
+
+services:
+  # Redis service
+  # redis:
+  #   image: redis:alpine
+  #   container_name: socketio-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis-data:/data
+  #   command: redis-server --appendonly yes
+  #   networks:
+  #     - socketio-network
+  #   restart: unless-stopped
+
+  redis-node-0:
+    image: docker.io/bitnami/redis-cluster:7.4
+    volumes:
+      - redis-cluster_data-0:/bitnami/redis/data
+    environment:
+      - 'REDIS_PASSWORD=bitnami'
+      - 'REDIS_NODES=redis-node-0 redis-node-1 redis-node-2 redis-node-3 redis-node-4 redis'
+    networks:
+      - socketio-network
+
+  redis-node-1:
+    image: docker.io/bitnami/redis-cluster:7.4
+    volumes:
+      - redis-cluster_data-1:/bitnami/redis/data
+    environment:
+      - 'REDIS_PASSWORD=bitnami'
+      - 'REDIS_NODES=redis-node-0 redis-node-1 redis-node-2 redis-node-3 redis-node-4 redis'
+    networks:
+      - socketio-network
+
+  redis-node-2:
+    image: docker.io/bitnami/redis-cluster:7.4
+    volumes:
+      - redis-cluster_data-2:/bitnami/redis/data
+    environment:
+      - 'REDIS_PASSWORD=bitnami'
+      - 'REDIS_NODES=redis-node-0 redis-node-1 redis-node-2 redis-node-3 redis-node-4 redis'
+    networks:
+      - socketio-network
+
+  redis-node-3:
+    image: docker.io/bitnami/redis-cluster:7.4
+    volumes:
+      - redis-cluster_data-3:/bitnami/redis/data
+    environment:
+      - 'REDIS_PASSWORD=bitnami'
+      - 'REDIS_NODES=redis-node-0 redis-node-1 redis-node-2 redis-node-3 redis-node-4 redis'
+    networks:
+      - socketio-network
+
+  redis-node-4:
+    image: docker.io/bitnami/redis-cluster:7.4
+    volumes:
+      - redis-cluster_data-4:/bitnami/redis/data
+    environment:
+      - 'REDIS_PASSWORD=bitnami'
+      - 'REDIS_NODES=redis-node-0 redis-node-1 redis-node-2 redis-node-3 redis-node-4 redis'
+    networks:
+      - socketio-network
+
+  redis:
+    image: docker.io/bitnami/redis-cluster:7.4
+    volumes:
+      - redis-cluster_data-5:/bitnami/redis/data
+    ports:
+      - "6379:6379"
+    depends_on:
+      - redis-node-0
+      - redis-node-1
+      - redis-node-2
+      - redis-node-3
+      - redis-node-4
+    environment:
+      - 'REDIS_PASSWORD=bitnami'
+      - 'REDISCLI_AUTH=bitnami'
+      - 'REDIS_CLUSTER_REPLICAS=1'
+      - 'REDIS_NODES=redis-node-0 redis-node-1 redis-node-2 redis-node-3 redis-node-4 redis'
+      - 'REDIS_CLUSTER_CREATOR=yes'
+    networks:
+      - socketio-network
+
+  # Socket.IO service - Replica 1
+  # socketio-1:
+  #   build:
+  #     context: ./socketio
+  #     dockerfile: Dockerfile
+  #   container_name: socketio-1
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     - NODE_ENV=development
+  #     - PORT=3000
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - INSTANCE_ID=1
+  #     - SECRET_KEY=your_super_secret_socket_key_2024
+  #   volumes:
+  #     - ./socketio/src:/app/src
+  #     - ./socketio/package.json:/app/package.json
+  #     - ./socketio/tsconfig.json:/app/tsconfig.json
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - socketio-network
+  #   restart: unless-stopped
+  #   command: /bin/sh -c "npm run build && npm start"
+
+  # # Socket.IO service - Replica 2
+  # socketio-2:
+  #   build:
+  #     context: ./socketio
+  #     dockerfile: Dockerfile
+  #   container_name: socketio-2
+  #   ports:
+  #     - "3002:3000"
+  #   environment:
+  #     - NODE_ENV=development
+  #     - PORT=3000
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - INSTANCE_ID=2
+  #     - SECRET_KEY=your_super_secret_socket_key_2024
+  #   volumes:
+  #     - ./socketio/src:/app/src
+  #     - ./socketio/package.json:/app/package.json
+  #     - ./socketio/tsconfig.json:/app/tsconfig.json
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - socketio-network
+  #   restart: unless-stopped
+  #   command: /bin/sh -c "npm run build && npm start"
+
+  # # Socket.IO service - Replica 3
+  # socketio-3:
+  #   build:
+  #     context: ./socketio
+  #     dockerfile: Dockerfile
+  #   container_name: socketio-3
+  #   ports:
+  #     - "3003:3000"
+  #   environment:
+  #     - NODE_ENV=development
+  #     - PORT=3000
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - INSTANCE_ID=3
+  #     - SECRET_KEY=your_super_secret_socket_key_2024
+  #   volumes:
+  #     - ./socketio/src:/app/src
+  #     - ./socketio/package.json:/app/package.json
+  #     - ./socketio/tsconfig.json:/app/tsconfig.json
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - socketio-network
+  #   restart: unless-stopped
+  #   command: /bin/sh -c "npm run build && npm start"
+
+  socketio:
+    build:
+      context: ./socketio
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SECRET_KEY=your_super_secret_socket_key_2024
+      - INSTANCE_ID=${HOSTNAME}
+    expose:
+      - "3000"
+    depends_on:
+      - redis
+    volumes:
+      - ./socketio/src:/app/src
+      - ./socketio/package.json:/app/package.json
+      - ./socketio/tsconfig.json:/app/tsconfig.json
+    restart: unless-stopped
+    command: /bin/sh -c "npm run build && npm start"
+    deploy:
+      replicas: 3
+      endpoint_mode: dnsrr  # Cần dùng chế độ DNS round-robin để load balance giữa các container
+    networks:
+      - socketio-network
+
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: socketio-nginx
+    ports:
+      - "80:80"
+      - "3000:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    # depends_on:
+      # - socketio-1
+      # - socketio-2
+      # - socketio-3
+      # - socketio
+    networks:
+      - socketio-network
+    restart: unless-stopped
+
+  # Web Demo Client
+  public:
+    build:
+      context: .
+      dockerfile: public/Dockerfile
+    container_name: socketio-public
+    ports:
+      - "8080:80"
+    environment:
+      - SOCKETIO_SERVER=http://nginx:80
+    depends_on:
+      - nginx
+    networks:
+      - socketio-network
+    restart: unless-stopped
+
+  # Webhook service
+  webhook:
+    build:
+      context: ./webhook
+      dockerfile: Dockerfile
+    container_name: socketio-webhook
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - SOCKETIO_URL=http://nginx:80
+      - SECRET_KEY=your_super_secret_socket_key_2024
+    volumes:
+      - ./webhook:/app
+      - /app/node_modules
+    # depends_on:
+    #   - nginx
+    networks:
+      - socketio-network
+    restart: unless-stopped
+
+networks:
+  socketio-network:
+    driver: bridge
+
+volumes:
+  # redis-data: 
+  redis-cluster_data-0:
+    driver: local
+  redis-cluster_data-1:
+    driver: local
+  redis-cluster_data-2:
+    driver: local
+  redis-cluster_data-3:
+    driver: local
+  redis-cluster_data-4:
+    driver: local
+  redis-cluster_data-5:
+    driver: local

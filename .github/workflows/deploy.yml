@@ -1,0 +1,89 @@
+name: Build and Deploy to Kubernetes
+
+on:
+  push:
+    branches: [ test ]
+    paths:
+      - 'socketio/**'
+      - 'k8s/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  DOCKER_REPOSITORY: ${{ github.repository_owner }}/socketio-server
+  K8S_NAMESPACE: socketio
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_REPOSITORY }}
+          tags: |
+            type=sha,format=short
+            type=ref,event=branch
+            latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./socketio
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Set the Kubernetes context
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+          
+      - name: Create namespace if not exists
+        run: |
+          kubectl get namespace ${{ env.K8S_NAMESPACE }} || kubectl create namespace ${{ env.K8S_NAMESPACE }}
+
+      - name: Update kustomization.yaml with new image tag
+        env:
+          IMAGE_TAG: sha-${{ github.sha }}
+        run: |
+          # Replace placeholders in deployment manifest
+          sed -i "s|\${DOCKER_REGISTRY}|${{ env.DOCKER_REGISTRY }}|g" k8s/deployment.yaml
+          sed -i "s|\${DOCKER_REPOSITORY}|${{ env.DOCKER_REPOSITORY }}|g" k8s/deployment.yaml
+          sed -i "s|\${IMAGE_TAG}|${{ env.IMAGE_TAG }}|g" k8s/deployment.yaml
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/configmap.yaml -n ${{ env.K8S_NAMESPACE }}
+          kubectl apply -f k8s/secret.yaml -n ${{ env.K8S_NAMESPACE }}
+          kubectl apply -f k8s/redis-deployment.yaml -n ${{ env.K8S_NAMESPACE }}
+          kubectl apply -f k8s/deployment.yaml -n ${{ env.K8S_NAMESPACE }}
+          kubectl apply -f k8s/service.yaml -n ${{ env.K8S_NAMESPACE }}
+          kubectl apply -f k8s/ingress.yaml -n ${{ env.K8S_NAMESPACE }}
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/socketio-server -n ${{ env.K8S_NAMESPACE }}
+          kubectl get pods,svc,ingress -n ${{ env.K8S_NAMESPACE }} 

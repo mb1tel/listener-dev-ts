@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Socket.IO Multi-Instance Test Client</title>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <script src="config.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    #messages { height: 300px; border: 1px solid #ccc; overflow-y: auto; margin-bottom: 20px; padding: 10px; }
+    .message { margin-bottom: 10px; padding: 5px; }
+    .message .sender { font-weight: bold; }
+    .message .time { font-size: 0.8em; color: #666; }
+    input, button { padding: 8px; margin-right: 5px; }
+    #message-form { display: flex; }
+    #message-input { flex-grow: 1; }
+    #server-info { margin-bottom: 10px; padding: 10px; background-color: #f0f0f0; border-radius: 5px; }
+    #connection-count { margin-top: 10px; font-weight: bold; }
+    .status { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+    .connected { background-color: green; }
+    .disconnected { background-color: red; }
+    .server-url { margin-top: 10px; font-size: 0.8em; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Socket.IO Multi-Instance Test Client</h1>
+  
+  <div id="server-info">
+    <div>
+      <span class="status" id="connection-status"></span>
+      <span id="connection-text">Connecting...</span>
+    </div>
+    <div id="server-instance">Server Instance: -</div>
+    <div id="connection-count">Connected Clients: 0</div>
+    <div class="server-url" id="server-url">Server URL: -</div>
+  </div>
+  
+  <div>
+    <label for="room-input">Room ID:</label>
+    <input type="text" id="room-input" placeholder="Enter room ID" value="">
+    <button id="join-btn">Join Room</button>
+  </div>
+  
+  <div id="messages"></div>
+  
+  <form id="message-form">
+    <input type="text" id="message-input" placeholder="Type a message..." disabled>
+    <button type="submit" id="send-btn" disabled>Send</button>
+  </form>
+  
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const roomInput = document.getElementById('room-input');
+    const joinBtn = document.getElementById('join-btn');
+    const connectionStatus = document.getElementById('connection-status');
+    const connectionText = document.getElementById('connection-text');
+    const serverInstance = document.getElementById('server-instance');
+    const connectionCount = document.getElementById('connection-count');
+    const serverUrlDiv = document.getElementById('server-url');
+    
+    // Set default room from config
+    roomInput.value = window.CONFIG.DEFAULT_ROOM || '';
+    
+    // Determine the Socket.IO server URL
+    // In Docker, this might be passed via environment
+    function getSocketIOServer() {
+      // Check first for a server specifically set for this demo
+      if (window.SOCKETIO_SERVER) {
+        return window.SOCKETIO_SERVER;
+      }
+      
+      // Check for config value (not null)
+      if (window.CONFIG && window.CONFIG.SOCKETIO_SERVER) {
+        console.log('Using configured Socket.IO server:', window.CONFIG.SOCKETIO_SERVER);
+        // Quan trọng: kiểm tra và chuyển đổi URL nếu đang chạy trên browser 
+        // (do browser không thể phân giải hostname "nginx")
+        const configuredUrl = window.CONFIG.SOCKETIO_SERVER;
+        
+        // Nếu URL chứa "nginx", thay thế bằng "localhost" cho browser
+        if (configuredUrl.includes('nginx')) {
+          const browserFriendlyUrl = configuredUrl.replace(/\/\/nginx/, '//localhost');
+          console.log('Converted URL for browser:', browserFriendlyUrl);
+          return browserFriendlyUrl;
+        }
+        
+        return configuredUrl;
+      }
+      
+      // Default to current origin (same host/protocol but might use different port)
+      const currentHost = window.location.hostname;
+      const currentProtocol = window.location.protocol;
+      
+      // Handle different deployment scenarios
+      let port;
+      // If we're accessing through port 8080 (possibly nginx), the socket server is likely on 3000
+      if (window.location.port === '8080') {
+        port = '3000';
+      } 
+      // Otherwise use current port or standard ports based on protocol
+      else {
+        port = window.location.port || (currentProtocol === 'https:' ? '443' : '80');
+      }
+      console.log('Using auto-detected Socket.IO server:', `${currentProtocol}//${currentHost}:${port}`);
+      return `${currentProtocol}//${currentHost}:${port}`;
+    }
+    
+    const socketIOServer = getSocketIOServer();
+    serverUrlDiv.textContent = `Server URL: ${socketIOServer}`;
+    
+    // Debug logging
+    if (window.CONFIG && window.CONFIG.DEBUG && window.CONFIG.DEBUG.ENABLE_LOGS) {
+      console.log(`Connecting to Socket.IO server at: ${socketIOServer}`);
+    }
+    
+    let currentRoom = null;
+    // Connect to the Socket.IO server with authentication
+    const socket = io(socketIOServer, {
+      auth: {
+        secret: 'your_super_secret_socket_key_2024'
+      },
+      transports: ['websocket', 'polling'],
+      path: '/listener' // Đổi path theo FE
+    });
+    
+    socket.on('connect', () => {
+      connectionStatus.className = 'status connected';
+      connectionText.textContent = `Connected to server with ID: ${socket.id}`;
+      
+      // Get server instance information
+      // Sử dụng relative URL để tránh CORS
+      const healthEndpoint = '/health';
+      
+      fetch(healthEndpoint)
+        .then(response => response.json())
+        .then(data => {
+          serverInstance.textContent = `Server Instance: ${data.instanceId}`;
+        })
+        .catch(error => {
+          console.error('Error fetching server info:', error);
+          serverInstance.textContent = `Server Instance: Unknown (fetch error)`;
+        });
+      
+      addSystemMessage(`Connected to server with ID: ${socket.id}`);
+    });
+    
+    socket.on('disconnect', () => {
+      connectionStatus.className = 'status disconnected';
+      connectionText.textContent = 'Disconnected from server';
+      
+      addSystemMessage('Disconnected from server');
+      messageInput.disabled = true;
+      sendBtn.disabled = true;
+    });
+    
+    socket.on('message', (data) => {
+      addMessage(data);
+    });
+    
+    // Listen for connection count updates
+    socket.on('client-count-update', (count) => {
+      connectionCount.textContent = `Connected Clients: ${count}`;
+    });
+    
+    joinBtn.addEventListener('click', () => {
+      const roomId = roomInput.value.trim();
+      if (!roomId) {
+        alert('Please enter a room ID');
+        return;
+      }
+      
+      // Join the room
+      socket.emit('join-room', roomId);
+      currentRoom = roomId;
+      addSystemMessage(`Joined room: ${roomId}`);
+      
+      // Enable messaging
+      messageInput.disabled = false;
+      sendBtn.disabled = false;
+    });
+    
+    messageForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const message = messageInput.value.trim();
+      if (!message || !currentRoom) return;
+      
+      // Send message to server
+      socket.emit('message', {
+        roomId: currentRoom,
+        message,
+        sender: `User-${socket.id.substring(0, 5)}`
+      });
+      
+      // Clear input
+      messageInput.value = '';
+    });
+    
+    function addMessage(data) {
+      const messageEl = document.createElement('div');
+      messageEl.className = 'message';
+      messageEl.innerHTML = `
+        <span class="sender">${data.sender}:</span>
+        <span class="text">${data.text}</span>
+        <span class="time">${new Date(data.timestamp).toLocaleTimeString()}</span>
+      `;
+      messagesDiv.appendChild(messageEl);
+      
+      // Auto-scroll if enabled
+      if (!window.CONFIG || !window.CONFIG.UI || window.CONFIG.UI.AUTO_SCROLL !== false) {
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+      
+      // Limit message history if configured
+      const messageLimit = window.CONFIG && window.CONFIG.UI && window.CONFIG.UI.MESSAGE_HISTORY_LIMIT 
+        ? window.CONFIG.UI.MESSAGE_HISTORY_LIMIT 
+        : 100;
+        
+      while (messagesDiv.children.length > messageLimit) {
+        messagesDiv.removeChild(messagesDiv.children[0]);
+      }
+    }
+    
+    function addSystemMessage(text) {
+      const messageEl = document.createElement('div');
+      messageEl.className = 'message system';
+      messageEl.innerHTML = `
+        <span class="sender">System:</span>
+        <span class="text">${text}</span>
+        <span class="time">${new Date().toLocaleTimeString()}</span>
+      `;
+      messagesDiv.appendChild(messageEl);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+  </script>
+  
+  <!-- Script to inject environment variables from Docker -->
+  <script>
+    // This script can be populated by a server-side process
+    // when running in Docker to inject environment variables
+    // window.SOCKETIO_SERVER = '';
+    // window.SOCKETIO_SERVER = 'http://localhost:3000';
+  </script>
+</body>
+</html>
