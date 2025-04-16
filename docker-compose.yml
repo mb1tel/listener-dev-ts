@@ -167,23 +167,22 @@ services:
     build:
       context: ./socketio
       dockerfile: Dockerfile
+      args:
+        - NODE_ENV=${NODE_ENV:-development}
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV:-development}
       - PORT=3000
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SECRET_KEY=your_super_secret_socket_key_2024
-      - INSTANCE_ID=${HOSTNAME}
     expose:
       - "3000"
     depends_on:
       - redis
     volumes:
-      - ./socketio/src:/app/src
-      - ./socketio/package.json:/app/package.json
-      - ./socketio/tsconfig.json:/app/tsconfig.json
+      # Mount .env file for development environment
+      - ./socketio/.env:/env/.env
     restart: unless-stopped
-    command: /bin/sh -c "npm run build && npm start"
     deploy:
       replicas: 3
       endpoint_mode: dnsrr  # Cần dùng chế độ DNS round-robin để load balance giữa các container

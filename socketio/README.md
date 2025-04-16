@@ -57,6 +57,36 @@ npm start
 | INSTANCE_ID | ID của instance | random |
 | SECRET_KEY | Key bảo mật | |
 
+### Cấu hình môi trường
+
+Dự án hỗ trợ việc tùy chỉnh môi trường thông qua file `.env`. Một file mẫu `.env.sample` đã được cung cấp.
+
+Để cấu hình:
+
+1. Sao chép file mẫu: `cp .env.sample .env`
+2. Chỉnh sửa các giá trị trong file `.env` theo nhu cầu
+
+Khi chạy với Docker:
+- Trong môi trường development: Sẽ sử dụng file `.env` được mount vào container
+- Trong môi trường production: Sẽ sử dụng các biến môi trường được định nghĩa trong `docker-compose.yml` hoặc K8s manifest
+
+### Chạy trong Docker
+
+Để xây dựng image cho development:
+```bash
+docker build -t socketio-server --build-arg NODE_ENV=development .
+```
+
+Để xây dựng image cho production:
+```bash
+docker build -t socketio-server --build-arg NODE_ENV=production .
+```
+
+Để chạy container với file .env:
+```bash
+docker run -p 3000:3000 -v $(pwd)/.env:/env/.env socketio-server
+```
+
 ## Triển khai với Kubernetes và GitHub Actions
 
 Dự án đã được cấu hình để tự động triển khai lên Kubernetes thông qua GitHub Actions. Quy trình CI/CD bao gồm:
