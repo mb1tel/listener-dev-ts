@@ -12,7 +12,6 @@ env:
   DOCKER_REGISTRY: ghcr.io
   DOCKER_REPOSITORY: mb1tel/listener-dev-ts
   REPO_NAME: listener-dev-ts
-  DOCKER_CONTEXT: ./socketio
   K8S_NAMESPACE: production
   NODE_VERSION: '16'
 
@@ -32,7 +31,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd ${{ env.DOCKER_CONTEXT }}
+        cd ./socketio
         npm install
 
     - name: Build Docker image
