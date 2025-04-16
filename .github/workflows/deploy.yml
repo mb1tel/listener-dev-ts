@@ -11,7 +11,7 @@ on:
 env:
   DOCKER_REGISTRY: ghcr.io
   DOCKER_REPOSITORY: mb1tel/listener-dev-ts
-  DOCKER_CONTEXT: ./socketio
+  MAIN_FOLDER: ./socketio
   REPO_NAME: listener-dev-ts
   K8S_NAMESPACE: production
   NODE_VERSION: '16'
@@ -32,14 +32,14 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd ${{ env.DOCKER_CONTEXT }}
+        cd ${{ env.MAIN_FOLDER }}
         npm install
 
     - name: Build Docker image
       run: |
         IMAGE_TAG=$(git rev-parse --short HEAD)
         echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-        cd ${{ env.DOCKER_CONTEXT }}
+        cd ${{ env.MAIN_FOLDER }}
         docker build -t ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_REPOSITORY }}:$IMAGE_TAG .
 
     - name: Set IMAGE_TAG Output  # ✅ Thêm id để đặt output IMAGE_TAG
