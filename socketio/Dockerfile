@@ -3,9 +3,8 @@ FROM node:16-alpine AS builder
 
 WORKDIR /app
 
-# Define build argument with production as default
-ARG NODE_ENV=production
-ENV NODE_ENV=${NODE_ENV}
+# Set NODE_ENV to development for build
+ENV NODE_ENV=development
 
 # Copy package files first (better layer caching)
 COPY package*.json ./
