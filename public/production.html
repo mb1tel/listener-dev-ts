@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Socket.IO Production Test Client</title>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    #messages { height: 300px; border: 1px solid #ccc; overflow-y: auto; margin-bottom: 20px; padding: 10px; }
+    .message { margin-bottom: 10px; padding: 5px; }
+    .message .sender { font-weight: bold; }
+    .message .time { font-size: 0.8em; color: #666; }
+    .system { background-color: #f8f8f8; font-style: italic; }
+    input, button { padding: 8px; margin-right: 5px; }
+    #message-form { display: flex; }
+    #message-input { flex-grow: 1; }
+    #server-info { margin-bottom: 10px; padding: 10px; background-color: #f0f0f0; border-radius: 5px; }
+    #connection-count { margin-top: 10px; font-weight: bold; }
+    .status { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+    .connected { background-color: green; }
+    .disconnected { background-color: red; }
+    .server-url { margin-top: 10px; font-size: 0.8em; color: #666; }
+    .header { display: flex; justify-content: space-between; align-items: center; }
+    .env-indicator { background-color: #ff6b6b; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Socket.IO Production Test Client</h1>
+    <div class="env-indicator">PRODUCTION</div>
+  </div>
+  
+  <div id="server-info">
+    <div>
+      <span class="status" id="connection-status"></span>
+      <span id="connection-text">Connecting...</span>
+    </div>
+    <div id="server-instance">Server Instance: -</div>
+    <div id="connection-count">Connected Clients: 0</div>
+    <div class="server-url" id="server-url">Server URL: -</div>
+  </div>
+  
+  <div>
+    <label for="room-input">Room ID:</label>
+    <input type="text" id="room-input" placeholder="Enter room ID" value="default">
+    <button id="join-btn">Join Room</button>
+  </div>
+  
+  <div id="messages"></div>
+  
+  <form id="message-form">
+    <input type="text" id="message-input" placeholder="Type a message..." disabled>
+    <button type="submit" id="send-btn" disabled>Send</button>
+  </form>
+  
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const roomInput = document.getElementById('room-input');
+    const joinBtn = document.getElementById('join-btn');
+    const connectionStatus = document.getElementById('connection-status');
+    const connectionText = document.getElementById('connection-text');
+    const serverInstance = document.getElementById('server-instance');
+    const connectionCount = document.getElementById('connection-count');
+    const serverUrlDiv = document.getElementById('server-url');
+    
+    // Production Socket.IO server URL
+    const SOCKETIO_SERVER = 'https://listener-dev.matbao.one';
+    serverUrlDiv.textContent = `Server URL: ${SOCKETIO_SERVER}`;
+    
+    console.log(`Connecting to production Socket.IO server at: ${SOCKETIO_SERVER}`);
+    
+    let currentRoom = null;
+    
+    // Connect to the Socket.IO server with authentication
+    const socket = io(SOCKETIO_SERVER, {
+      auth: {
+        secret: 'UZ0v0793XHRw3g04muU7N4XQHwMRR45'
+      },
+      transports: ['websocket', 'polling'],
+      path: '/listener'
+    });
+    
+    socket.on('connect', () => {
+      connectionStatus.className = 'status connected';
+      connectionText.textContent = `Connected to production server with ID: ${socket.id}`;
+      
+      addSystemMessage(`Connected to production server with ID: ${socket.id}`);
+      
+      // Get server instance information if available
+      try {
+        const healthEndpoint = `${SOCKETIO_SERVER}/health`;
+        
+        fetch(healthEndpoint)
+          .then(response => response.json())
+          .then(data => {
+            serverInstance.textContent = `Server Instance: ${data.instanceId || 'Unknown'}`;
+          })
+          .catch(error => {
+            console.error('Error fetching server info:', error);
+            serverInstance.textContent = `Server Instance: Unknown (fetch error)`;
+          });
+      } catch (error) {
+        console.error('Error fetching server info:', error);
+      }
+    });
+    
+    socket.on('disconnect', () => {
+      connectionStatus.className = 'status disconnected';
+      connectionText.textContent = 'Disconnected from production server';
+      
+      addSystemMessage('Disconnected from production server');
+      messageInput.disabled = true;
+      sendBtn.disabled = true;
+    });
+    
+    socket.on('message', (data) => {
+      addMessage(data);
+    });
+    
+    // Listen for connection count updates
+    socket.on('client-count-update', (count) => {
+      connectionCount.textContent = `Connected Clients: ${count}`;
+    });
+    
+    joinBtn.addEventListener('click', () => {
+      const roomId = roomInput.value.trim();
+      if (!roomId) {
+        alert('Please enter a room ID');
+        return;
+      }
+      
+      // Join the room
+      socket.emit('join-room', roomId);
+      currentRoom = roomId;
+      addSystemMessage(`Joined room: ${roomId}`);
+      
+      // Enable messaging
+      messageInput.disabled = false;
+      sendBtn.disabled = false;
+    });
+    
+    messageForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const message = messageInput.value.trim();
+      if (!message || !currentRoom) return;
+      
+      // Send message to server
+      socket.emit('message', {
+        roomId: currentRoom,
+        text: message,
+        sender: `User-${socket.id.substring(0, 5)}`
+      });
+      
+      // Also display the message locally
+      addMessage({
+        sender: `User-${socket.id.substring(0, 5)}`,
+        text: message,
+        timestamp: Date.now()
+      });
+      
+      // Clear input
+      messageInput.value = '';
+    });
+    
+    function addMessage(data) {
+      const messageEl = document.createElement('div');
+      messageEl.className = 'message';
+      
+      // Handle different message formats
+      const sender = data.sender || 'Unknown';
+      const text = data.text || data.message || 'No message content';
+      const timestamp = data.timestamp || Date.now();
+      
+      messageEl.innerHTML = `
+        <span class="sender">${sender}:</span>
+        <span class="text">${text}</span>
+        <span class="time">${new Date(timestamp).toLocaleTimeString()}</span>
+      `;
+      messagesDiv.appendChild(messageEl);
+      
+      // Auto-scroll
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      
+      // Limit message history
+      const messageLimit = 100;
+      while (messagesDiv.children.length > messageLimit) {
+        messagesDiv.removeChild(messagesDiv.children[0]);
+      }
+    }
+    
+    function addSystemMessage(text) {
+      const messageEl = document.createElement('div');
+      messageEl.className = 'message system';
+      messageEl.innerHTML = `
+        <span class="sender">System:</span>
+        <span class="text">${text}</span>
+        <span class="time">${new Date().toLocaleTimeString()}</span>
+      `;
+      messagesDiv.appendChild(messageEl);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+  </script>
+</body>
+</html> 

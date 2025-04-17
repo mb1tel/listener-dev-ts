@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  # Web Demo Client for Production
+  prod-client:
+    build:
+      context: ./public
+      dockerfile: production/Dockerfile
+    container_name: socketio-prod-client
+    ports:
+      - "8081:80"
+    restart: unless-stopped 
