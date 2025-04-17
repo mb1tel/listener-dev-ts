@@ -184,7 +184,8 @@ export class SocketService {
     });
 
     // Handle disconnection
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
+      logger.warn(`Client ${socket.id} disconnected. Reason: ${reason}`);
       this.handleDisconnect(socket);
     });
   }

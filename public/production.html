@@ -80,7 +80,7 @@
       auth: {
         secret: 'UZ0v0793XHRw3g04muU7N4XQHwMRR45'
       },
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
       path: '/listener'
     });
     
@@ -156,11 +156,11 @@
       });
       
       // Also display the message locally
-      addMessage({
-        sender: `User-${socket.id.substring(0, 5)}`,
-        text: message,
-        timestamp: Date.now()
-      });
+      // addMessage({
+      //   sender: `User-${socket.id.substring(0, 5)}`,
+      //   text: message,
+      //   timestamp: Date.now()
+      // });
       
       // Clear input
       messageInput.value = '';

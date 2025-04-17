@@ -522,5 +522,3 @@ export interface AudioMessageData {
 4. **Phân tách**: Mỗi loại tin nhắn nên có một controller riêng để dễ bảo trì.
 
 5. **Documentation**: Cập nhật tài liệu API khi thêm loại tin nhắn mới.
-
-Với cấu trúc này, bạn có thể dễ dàng thêm nhiều loại tin nhắn khác nhau trong tương lai mà không cần sửa đổi code hiện có. 
