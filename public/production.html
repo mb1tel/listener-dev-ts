@@ -151,7 +151,7 @@
       // Send message to server
       socket.emit('message', {
         roomId: currentRoom,
-        text: message,
+        message,
         sender: `User-${socket.id.substring(0, 5)}`
       });
       
