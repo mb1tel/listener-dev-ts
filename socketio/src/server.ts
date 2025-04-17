@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import http from 'http';
 import path from 'path';
+import cors from 'cors';
 import { env, validateEnv } from './config/env';
 import logger from './utils/logger';
 import { SocketService } from './services/socketService';
@@ -20,6 +21,12 @@ const server = http.createServer(app);
 const socketService = new SocketService(server);
 
 // Middleware
+const corsOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*';
+app.use(cors({
+  origin: corsOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

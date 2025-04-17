@@ -218,8 +218,8 @@ services:
       - "8080:80"
     environment:
       - SOCKETIO_SERVER=http://nginx:80
-    depends_on:
-      - nginx
+    # depends_on:
+    #  - nginx
     networks:
       - socketio-network
     restart: unless-stopped

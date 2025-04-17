@@ -119,11 +119,11 @@
     let currentRoom = null;
     // Connect to the Socket.IO server with authentication
     const socket = io(socketIOServer, {
+      path: '/listener',
       auth: {
         secret: 'your_super_secret_socket_key_2024'
       },
       transports: ['websocket', 'polling'],
-      path: '/listener' // Đổi path theo FE
     });
     
     socket.on('connect', () => {
