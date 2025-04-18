@@ -7,8 +7,10 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Socket.IO server configuration
-const SOCKETIO_URL = process.env.SOCKETIO_URL || 'http://localhost:3000';
-const SECRET_KEY = process.env.SECRET_KEY || 'your_super_secret_socket_key_2024';
+// const SOCKETIO_URL = process.env.SOCKETIO_URL || 'http://localhost:3000';
+// const SECRET_KEY = process.env.SECRET_KEY || 'your_super_secret_socket_key_2024';
+const SOCKETIO_URL = 'https://listener-dev.matbao.one';
+const SECRET_KEY = 'UZ0v0793XHRw3g04muU7N4XQHwMRR45';
 const SOCKET_NAME = process.env.SOCKET_NAME || 'hooks-api';
 
 console.log(`Connecting to Socket.IO server at ${SOCKETIO_URL}`);
@@ -45,7 +47,7 @@ function createSocketConnection() {
   });
 
   socket.on('connect_error', (error) => {
-    console.error('Connection error:', error.message);
+    console.error('Connection error:', error);
   });
 
   // Reconnection events

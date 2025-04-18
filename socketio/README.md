@@ -51,11 +51,44 @@ npm start
 | Biến | Mô tả | Mặc định |
 |------|-------|----------|
 | PORT | Port cho server | 3000 |
-| REDIS_HOST | Hostname của Redis | localhost |
-| REDIS_PORT | Port của Redis | 6379 |
+| REDIS_MODE | Chế độ kết nối Redis (standalone/cluster/sentinel) | standalone |
+| REDIS_HOST | Hostname của Redis (cho standalone mode) | localhost |
+| REDIS_PORT | Port của Redis (cho standalone mode) | 6379 |
+| REDIS_USERNAME | Username của Redis | |
 | REDIS_PASSWORD | Password của Redis | |
+| REDIS_NODES | Danh sách các nodes cho cluster mode (host1:port1,host2:port2) | |
+| REDIS_SENTINELS | Danh sách các sentinels (host1:port1,host2:port2) | |
+| REDIS_SENTINEL_NAME | Tên của master trong Redis Sentinel | mymaster |
+| REDIS_SENTINEL_PASSWORD | Password cho Redis Sentinel | |
 | INSTANCE_ID | ID của instance | random |
 | SECRET_KEY | Key bảo mật | |
+
+### Redis Mode
+
+Dự án hỗ trợ ba chế độ kết nối Redis khác nhau:
+
+#### 1. Standalone Mode
+Kết nối đến một instance Redis đơn lẻ.
+```
+REDIS_MODE=standalone
+REDIS_HOST=redis
+REDIS_PORT=6379
+```
+
+#### 2. Cluster Mode
+Kết nối đến Redis Cluster với nhiều nodes.
+```
+REDIS_MODE=cluster
+REDIS_NODES=redis-node-0:6379,redis-node-1:6379,redis-node-2:6379
+```
+
+#### 3. Sentinel Mode
+Kết nối thông qua Redis Sentinel để đảm bảo high availability.
+```
+REDIS_MODE=sentinel
+REDIS_SENTINELS=sentinel-0:26379,sentinel-1:26379,sentinel-2:26379
+REDIS_SENTINEL_NAME=mymaster
+```
 
 ### Cấu hình môi trường
 

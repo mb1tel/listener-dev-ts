@@ -41,6 +41,8 @@ export class RedisService {
     // Initialize Redis clients based on the configured mode
     if (this.isClusterMode) {
       this.initializeCluster();
+    } else if (env.REDIS.MODE === 'sentinel') {
+      this.initializeSentinel();
     } else {
       this.initializeStandalone();
     }
@@ -48,7 +50,7 @@ export class RedisService {
     // Set up event handlers for connection issues
     this.setupEventHandlers();
 
-    logger.info(`[Redis service initialized in ${this.isClusterMode ? 'cluster' : 'standalone'} mode`);
+    logger.info(`[Redis service initialized in ${this.isClusterMode ? 'cluster' : env.REDIS.MODE} mode]`);
   }
 
   private getRetryStrategy(times: number): number | null {
@@ -63,6 +65,37 @@ export class RedisService {
     logger.debug(`[Redis retry attempt: ${times}, delay: ${delay}ms`);
     return delay;
   }
+
+  private initializeSentinel(): void {
+    const sentinelOptions: RedisOptions = {
+      sentinels: env.REDIS.SENTINELS.length > 0 ? env.REDIS.SENTINELS : [
+        { host: "sentinel-0.sentinel.nosql.svc.cluster.local", port: 5000 },
+        { host: "sentinel-1.sentinel.nosql.svc.cluster.local", port: 5000 },
+        { host: "sentinel-2.sentinel.nosql.svc.cluster.local", port: 5000 }
+      ],
+      name: env.REDIS.SENTINEL_NAME,
+      username: env.REDIS.USERNAME || undefined,
+      password: env.REDIS.PASSWORD || undefined,
+      sentinelPassword: env.REDIS.SENTINEL_PASSWORD || undefined,
+      sentinelRetryStrategy: this.getRetryStrategy.bind(this),
+      retryStrategy: this.getRetryStrategy.bind(this),
+      enableReadyCheck: true,
+      maxRetriesPerRequest: 3,
+      reconnectOnError: (err) => {
+        const targetError = 'READONLY';
+        if (err.message.includes(targetError)) {
+          return true; // reconnect on READONLY error
+        }
+        return false;
+      }
+    };
+  
+    logger.info(`Initializing Redis Sentinel with master: ${env.REDIS.SENTINEL_NAME} and sentinels: ${JSON.stringify(env.REDIS.SENTINELS)}`);
+    
+    // Initialize Sentinel Redis clients
+    this.pubClient = new Redis(sentinelOptions);
+    this.subClient = this.pubClient.duplicate();
+  }  
 
   private initializeStandalone(): void {
     const options: RedisOptions = {
@@ -110,12 +143,12 @@ export class RedisService {
 
     // Initialize cluster Redis clients independently
     this.pubClient = new Redis.Cluster(nodes, options);
-    // this.subClient = this.pubClient.duplicate();
+    this.subClient = this.pubClient.duplicate();
     // Create subClient with same config but independent connection - xai cai nay cho chac.
-    this.subClient = new Redis.Cluster(nodes, {
-      ...options,
-      lazyConnect: true // Prevent immediate connection until needed
-    });
+    // this.subClient = new Redis.Cluster(nodes, {
+    //   ...options,
+    //   lazyConnect: true // Prevent immediate connection until needed
+    // });
   }
 
   private setupEventHandlers(): void {

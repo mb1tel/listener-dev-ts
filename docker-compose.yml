@@ -14,6 +14,87 @@ services:
   #     - socketio-network
   #   restart: unless-stopped
 
+  # Redis Sentinel Configuration
+  redis-master:
+    image: bitnami/redis:latest
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_REPLICATION_MODE=master
+      - REDIS_PASSWORD=bitnami
+    networks:
+      - socketio-network
+    volumes:
+      - redis-master-data:/bitnami/redis/data
+
+  redis-replica:
+    image: bitnami/redis:latest
+    ports:
+      - "6380:6379"
+    depends_on:
+      - redis-master
+    environment:
+      - REDIS_REPLICATION_MODE=slave
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_PASSWORD=bitnami
+      - REDIS_PASSWORD=bitnami
+    networks:
+      - socketio-network
+    volumes:
+      - redis-replica-data:/bitnami/redis/data
+
+  sentinel-1:
+    image: bitnami/redis-sentinel:latest
+    ports:
+      - "26379:26379"
+    depends_on:
+      - redis-master
+      - redis-replica
+    environment:
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=5000
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_PASSWORD=sentinel_password
+    networks:
+      - socketio-network
+
+  sentinel-2:
+    image: bitnami/redis-sentinel:latest
+    ports:
+      - "26380:26379"
+    depends_on:
+      - redis-master
+      - redis-replica
+    environment:
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=5000
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_PASSWORD=sentinel_password
+    networks:
+      - socketio-network
+
+  sentinel-3:
+    image: bitnami/redis-sentinel:latest
+    ports:
+      - "26381:26379"
+    depends_on:
+      - redis-master
+      - redis-replica
+    environment:
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=5000
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_PASSWORD=sentinel_password
+    networks:
+      - socketio-network
+
   redis-node-0:
     image: docker.io/bitnami/redis-cluster:7.4
     volumes:
@@ -172,13 +253,20 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - PORT=3000
-      - REDIS_HOST=redis
+      # Cấu hình Sentinel khi muốn sử dụng
+      - REDIS_MODE=sentinel
+      - REDIS_SENTINELS=sentinel-1:26379,sentinel-2:26379,sentinel-3:26379
+      - REDIS_SENTINEL_NAME=mymaster
+      - REDIS_SENTINEL_PASSWORD=sentinel_password
+      - REDIS_PASSWORD=bitnami
+      # Cấu hình Standalone hiện tại
+      - REDIS_HOST=172.18.88.241
       - REDIS_PORT=6379
-      - SECRET_KEY=your_super_secret_socket_key_2024
+      - SECRET_KEY=UZ0v0793XHRw3g04muU7N4XQHwMRR45
     expose:
       - "3000"
-    depends_on:
-      - redis
+    # depends_on:
+    #   - redis
     volumes:
       # Mount .env file for development environment
       - ./socketio/.env:/env/.env
@@ -250,6 +338,10 @@ networks:
     driver: bridge
 
 volumes:
+  redis-master-data:
+    driver: local
+  redis-replica-data:
+    driver: local
   # redis-data: 
   redis-cluster_data-0:
     driver: local
